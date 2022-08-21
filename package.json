@@ -2,8 +2,12 @@
     "name": "mavisbotrewrite",
     "version": "0.0.1",
     "description": "Simple Personal Discord Music Bot. Rewritten in TypeScript. Project name will be changed once finished",
-    "main": "start.js",
     "scripts": {
+        "build-ts": "tsc",
+        "build": "npm run build-ts && npm run lint",
+        "lint": "tsc --noEmit && eslint \"**/*.{js,ts}\" --quiet --fix",
+        "serve": "node dist/index.js",
+        "start": "npm run serve",
         "test": "echo \"Error: no test specified\" && exit 1"
     },
     "repository": {
@@ -26,6 +30,8 @@
         "sodium-native": "^3.4.1"
     },
     "devDependencies": {
+        "@typescript-eslint/eslint-plugin": "^5.33.1",
+        "eslint": "^8.22.0",
         "typescript": "^4.7.4"
     }
 }
