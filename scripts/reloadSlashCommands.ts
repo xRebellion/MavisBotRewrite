@@ -7,7 +7,7 @@ import { discordConfig } from "../src/config/discord";
 async function reloadCommands() {
     const commands: RESTPostAPIApplicationCommandsJSONBody[] = [];
     const commandPath = path.join(__dirname, '..', 'src', 'commands');
-    const commandFiles = fs.readdirSync(commandPath).filter(file => !file.startsWith('command'));
+    const commandFiles = fs.readdirSync(commandPath);
     for (const file of commandFiles) {
         const filePath = path.join(commandPath, file);
         const c = await import(filePath);
