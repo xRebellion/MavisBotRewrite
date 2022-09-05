@@ -12,4 +12,4 @@ class PingCommand extends BaseCommand {
         return interaction.reply("Pong!");
     }
 }
-module.exports = new PingCommand();
+export const command = new PingCommand();
