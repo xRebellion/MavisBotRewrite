@@ -11,7 +11,7 @@ async function reloadCommands() {
     for (const file of commandFiles) {
         const filePath = path.join(commandPath, file);
         const c = await import(filePath);
-        const command: BaseCommand = c.default;
+        const command: BaseCommand = c.command;
 
         commands.push(command.getSlashCommandBuilder().toJSON());
     }
