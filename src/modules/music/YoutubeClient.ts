@@ -17,6 +17,7 @@ export class YoutubeClient {
                 info.videoDetails.thumbnails.slice(-1)[0],
                 parseInt(info.videoDetails.lengthSeconds),
                 info.videoDetails.ownerChannelName,
+                ""
             ));
         });
     }

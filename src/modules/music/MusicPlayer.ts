@@ -1,8 +1,14 @@
 import { AudioPlayer, AudioPlayerStatus, AudioResource, createAudioPlayer, entersState, joinVoiceChannel, VoiceConnection, VoiceConnectionDisconnectReason, VoiceConnectionStatus } from "@discordjs/voice";
+import axios from "axios";
 import { TextBasedChannel, VoiceBasedChannel } from "discord.js";
 import { delay } from "../../util/delay";
 import { MusicQueue } from "./MusicQueue";
+import { Song } from "./Song";
 
+const YOUTUBE_API_URL = "https://www.googleapis.com/youtube/v3/search";
+const YOUTUBE_PLAYLIST_API_URL = "https://www.googleapis.com/youtube/v3/playlistItems";
+const YOUTUBE_VIDEO_URL = "https://www.youtube.com/watch";
+const YOUTUBE_PLAYLIST_URL = "https://www.youtube.com/playlist";
 export class MusicPlayer {
     textChannel: TextBasedChannel | null; // temporary undefined
     voiceChannel: VoiceBasedChannel | null | undefined;
@@ -15,6 +21,7 @@ export class MusicPlayer {
     private nextResource: AudioResource | null;
     private readyLock: boolean;
     private queueLock: boolean;
+
 
     constructor(textChannel: TextBasedChannel | null, voiceChannel: VoiceBasedChannel | null | undefined) {
         this.textChannel = textChannel;
@@ -123,6 +130,118 @@ export class MusicPlayer {
 
     }
 
+    async enqueue(query: string, author: string, queueNumber: number): Promise<string> {
+        let response = null;
+        let reply = "empty";
+
+        if (query.startsWith(YOUTUBE_VIDEO_URL)) {
+            const url: URL = new URL(query);
+            const videoId: string | null = url.searchParams.get('v');
+            const song = await Song.From(videoId, author);
+            if (!song) return "Song not found"; // TODO: error handling
+            const index = this.queue.addSongToIndex(song, queueNumber - 1);
+
+            // const enqueueEmbed = new EnqueueEmbed(song, index + 1)
+            // reply = { embeds: [enqueueEmbed.build()] }
+            reply = "Now playing " + song.title;
+
+            // } else if (query.startsWith(YOUTUBE_PLAYLIST_URL)) {
+            //     const url = new URL(query)
+            //     let playlistId = url.searchParams.get('list')
+            //     let songs = []
+
+            //     let params = {
+            //         part: "snippet",
+            //         key: process.env.YOUTUBE_API_KEY,
+            //         playlistId: playlistId,
+            //         maxResults: 50,
+            //         pageToken: null
+            //     }
+
+            //     do {
+            //         try {
+            //             response = await axios.get(YOUTUBE_PLAYLIST_API_URL, {
+            //                 params: params
+            //             })
+            //         } catch (err) {
+            //             return console.error(err)
+            //         }
+            //         for (const item of response.data.items) {
+            //             const song = new Song(
+            //                 item.snippet.resourceId.videoId,
+            //                 item.snippet.title,
+            //                 item.snippet.thumbnails.standard,
+            //                 -1,
+            //                 item.snippet.videoOwnerChannelTitle,
+            //                 author
+            //             )
+
+            //             songs.push(song)
+            //         }
+            //         params.pageToken = response.data.nextPageToken
+            //     } while (response.data.nextPageToken)
+            //     if (!this.musicQueue.isPlaying()) {
+            //         songs[0] = await Song.from(songs[0].videoId, author)
+            //     }
+            //     this.musicQueue.addSongsToIndex(songs, queueNumber - 1)
+            //     this.musicQueue.updateDurations()
+            //     reply = `Queued **${songs.length}** songs!`
+
+        } else {
+            const params = {
+                part: "id",
+                key: process.env.YOUTUBE_API_KEY,
+                q: query,
+                type: "video",
+                maxResults: 1
+            };
+
+            try {
+                response = await axios.get(YOUTUBE_API_URL, {
+                    params: params
+                });
+            } catch (err) {
+                console.error(err);
+                return "Error while trying to fetch video info";
+            }
+            try {
+                const videoId = response.data.items[0].id.videoId;
+                const song = await Song.From(videoId, author);
+                if (!song) return "Song not found"; // TODO: error handling
+                const index = this.queue.addSongToIndex(song, queueNumber - 1);
+
+                // const enqueueEmbed = new EnqueueEmbed(song, index + 1);
+                // reply = { embeds: [enqueueEmbed.build()] }
+                reply = "Now playing " + song.title;
+
+            } catch (err) {
+                console.log(err);
+                reply = "Music Not Found!";
+            }
+
+        }
+        if (queueNumber == 1) { // if play top, refresh the cache {
+            this.cacheNextSong();
+        }
+        this.processQueue();
+        return reply;
+    }
+
+    cacheNextSong() {
+        if (this.queue.nextSongExists()) {
+            this.queue.getNextSong()?.createAudioResource().then(resource => {
+                this.nextResource = resource;
+            });
+        } else {
+            this.nextResource = null; // and last song
+        }
+    }
+    clear() {
+        this.queue.empty();
+        this.resource = null;
+        this.nextResource = null;
+        this.audioPlayer.stop(true);
+    }
     async processQueue(): Promise<void> {
         try {
             // If the queue is locked (already being processed), is empty, or the audio player already cached the next song
@@ -154,6 +273,7 @@ export class MusicPlayer {
             // Take the first item from the queue
             const track = this.queue.shift();
             // this.playerEmbed.setSong(track);
+            if (!track) return;
 
             // Attempt to convert the Track into an AudioResource (i.e. start streaming the video)
             if (!this.resource && !this.nextResource) { // Queuing a playlist

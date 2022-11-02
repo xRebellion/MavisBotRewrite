@@ -1,4 +1,4 @@
-import { Collection, GuildMember, InteractionResponse, PermissionsBitField } from "discord.js";
+import { Collection, CommandInteraction, GuildMember, InteractionResponse, PermissionsBitField } from "discord.js";
 import { MusicPlayer } from "../modules/music/MusicPlayer";
 import { BaseManager } from "../types/BaseClasses";
 import { RepliableInteraction } from "../types/RepliableInteraction";
@@ -40,6 +40,17 @@ export class MusicManager extends BaseManager {
             this.players.set(guildId, player);
         }
         // interaction.editReply("enqueued");
+        if (interaction instanceof CommandInteraction) {
+            const query = interaction.options.get("url-or-query")?.value?.toString();
+
+            if (!query || !requester?.username) {
+                interaction.editReply("AAAAA");
+                return response;
+            } // TODO: handling error
+
+            interaction.editReply(await player.enqueue(query, requester?.username, 0));
+        }
+
         return response;
     }
 

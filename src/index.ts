@@ -23,6 +23,7 @@ client.on('ready', () => {
 });
 const commandManager = new CommandManager(path.join(__dirname, 'commands'));
 client.on('interactionCreate', async interaction => {
+
     if (!interaction.isChatInputCommand()) return;
 
     const command = commandManager.commands.get(interaction.commandName);
