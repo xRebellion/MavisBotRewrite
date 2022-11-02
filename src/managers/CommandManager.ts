@@ -15,6 +15,7 @@ export class CommandManager extends BaseManager {
         const commandFiles = fs.readdirSync(commandsPath);
         for (const file of commandFiles) {
             const filePath = path.join(commandsPath, file);
+            if (!filePath.endsWith(".js")) continue;
             const c = await import(filePath);
             const command: BaseCommand = c.command;
             this.commands.set(command.name, command);
