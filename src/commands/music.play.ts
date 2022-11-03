@@ -1,7 +1,6 @@
-import { InteractionResponse, SlashCommandStringOption } from "discord.js";
+import { CommandInteraction, InteractionResponse, SlashCommandStringOption } from "discord.js";
 import { MusicManager } from "../managers/MusicManager";
 import { BaseCommand } from "../types/BaseClasses";
-import { RepliableInteraction } from "../types/RepliableInteraction";
 
 class PlayCommand extends BaseCommand {
 
@@ -16,7 +15,7 @@ class PlayCommand extends BaseCommand {
         ];
         super(commandName, commandDescription, options);
     }
-    async execute(interaction: RepliableInteraction): Promise<InteractionResponse> {
+    async execute(interaction: CommandInteraction): Promise<InteractionResponse> {
         return MusicManager.enqueue(interaction);
     }
 }

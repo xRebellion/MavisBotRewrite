@@ -11,14 +11,14 @@ export class YoutubeClient {
         }
         const info = await getInfo(videoId);
         return new Promise((resolve) => {
-            resolve(new Song(
-                videoId,
-                info.videoDetails.title,
-                info.videoDetails.thumbnails.slice(-1)[0],
-                parseInt(info.videoDetails.lengthSeconds),
-                info.videoDetails.ownerChannelName,
-                ""
-            ));
+            // resolve(new Song(
+            //     videoId,
+            //     info.videoDetails.title,
+            //     info.videoDetails.thumbnails.slice(-1)[0],
+            //     parseInt(info.videoDetails.lengthSeconds),
+            //     info.videoDetails.ownerChannelName,
+
+            // ));
         });
     }
 

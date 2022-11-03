@@ -27,9 +27,10 @@ export class MusicQueue {
         }
     }
 
-    addsongIdsToIndex(songIds: Song[], index: number): void {
+    addSongsToIndex(songs: (Song | undefined)[], index: number): void {
         let i = index;
-        for (const song of songIds) {
+        for (const song of songs) {
+            if (!song) continue;
             if (index < 0) {
                 this.addSong(song);
             } else {

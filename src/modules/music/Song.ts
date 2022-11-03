@@ -1,14 +1,16 @@
 import { AudioResource, createAudioResource, demuxProbe } from "@discordjs/voice";
+import { User } from "discord.js";
 import ytdl, { getInfo } from "ytdl-core";
 
 export class Song {
+
     videoId: string;
     title: string;
     thumbnail: ytdl.thumbnail;
     duration: number;
     channelName: string;
-    requester: string;
-    constructor(videoId: string, title: string, thumbnail: ytdl.thumbnail, duration: number, channelName: string, requester: string) {
+    requester: User;
+    constructor(videoId: string, title: string, thumbnail: ytdl.thumbnail, duration: number, channelName: string, requester: User) {
         this.videoId = videoId;
         this.title = title;
         this.thumbnail = thumbnail;
@@ -38,7 +40,11 @@ export class Song {
         });
     }
 
-    static async From(videoId: string | null, requester: string): Promise<Song | undefined> {
+    getVideoURL(): string {
+        return "https://www.youtube.com/watch?v=" + this.videoId;
+    }
+
+    static async From(videoId: string | null, requester: User): Promise<Song | undefined> {
         if (videoId == null) return undefined;
         const info = await getInfo(videoId);
         return new Song(

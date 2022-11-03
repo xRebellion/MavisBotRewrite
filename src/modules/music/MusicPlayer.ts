@@ -1,7 +1,9 @@
 import { AudioPlayer, AudioPlayerStatus, AudioResource, createAudioPlayer, entersState, joinVoiceChannel, VoiceConnection, VoiceConnectionDisconnectReason, VoiceConnectionStatus } from "@discordjs/voice";
 import axios from "axios";
-import { TextBasedChannel, VoiceBasedChannel } from "discord.js";
+import { InteractionReplyOptions, TextBasedChannel, User, VoiceBasedChannel, WebhookEditMessageOptions } from "discord.js";
 import { delay } from "../../util/delay";
+import { toActionRow } from "../../util/toActionRow";
+import { EnqueueEmbed } from "./embed/enqueue_embed";
 import { MusicQueue } from "./MusicQueue";
 import { Song } from "./Song";
 
@@ -130,9 +132,9 @@ export class MusicPlayer {
 
     }
 
-    async enqueue(query: string, author: string, queueNumber: number): Promise<string> {
+    async enqueue(query: string, author: User, queueNumber: number): Promise<string | WebhookEditMessageOptions> {
         let response = null;
-        let reply = "empty";
+        let reply: string | InteractionReplyOptions = "empty";
 
         if (query.startsWith(YOUTUBE_VIDEO_URL)) {
             const url: URL = new URL(query);
@@ -141,59 +143,59 @@ export class MusicPlayer {
             if (!song) return "Song not found"; // TODO: error handling
             const index = this.queue.addSongToIndex(song, queueNumber - 1);
 
-            // const enqueueEmbed = new EnqueueEmbed(song, index + 1)
-            // reply = { embeds: [enqueueEmbed.build()] }
-            reply = "Now playing " + song.title;
+            const enqueueEmbed = new EnqueueEmbed(song, index + 1);
+            reply = { embeds: [enqueueEmbed.build()], components: [], content: null };
 
-            // } else if (query.startsWith(YOUTUBE_PLAYLIST_URL)) {
-            //     const url = new URL(query)
-            //     let playlistId = url.searchParams.get('list')
-            //     let songs = []
+        } else if (query.startsWith(YOUTUBE_PLAYLIST_URL)) {
+            const url = new URL(query);
+            const playlistId = url.searchParams.get('list');
+            const songs = [];
 
-            //     let params = {
-            //         part: "snippet",
-            //         key: process.env.YOUTUBE_API_KEY,
-            //         playlistId: playlistId,
-            //         maxResults: 50,
-            //         pageToken: null
-            //     }
+            const params = {
+                part: "snippet",
+                key: process.env.YOUTUBE_API_KEY,
+                playlistId: playlistId,
+                maxResults: 50,
+                pageToken: null
+            };
 
-            //     do {
-            //         try {
-            //             response = await axios.get(YOUTUBE_PLAYLIST_API_URL, {
-            //                 params: params
-            //             })
-            //         } catch (err) {
-            //             return console.error(err)
-            //         }
-            //         for (const item of response.data.items) {
-            //             const song = new Song(
-            //                 item.snippet.resourceId.videoId,
-            //                 item.snippet.title,
-            //                 item.snippet.thumbnails.standard,
-            //                 -1,
-            //                 item.snippet.videoOwnerChannelTitle,
-            //                 author
-            //             )
+            do {
+                try {
+                    response = await axios.get(YOUTUBE_PLAYLIST_API_URL, {
+                        params: params
+                    });
+                } catch (err) {
+                    console.error(err);
+                    return "An error occurred";
+                }
+                for (const item of response.data.items) {
+                    const song = new Song(
+                        item.snippet.resourceId.videoId,
+                        item.snippet.title,
+                        item.snippet.thumbnails.standard,
+                        -1,
+                        item.snippet.videoOwnerChannelTitle,
+                        author
+                    );
 
-            //             songs.push(song)
-            //         }
-            //         params.pageToken = response.data.nextPageToken
-            //     } while (response.data.nextPageToken)
-            //     if (!this.musicQueue.isPlaying()) {
-            //         songs[0] = await Song.from(songs[0].videoId, author)
-            //     }
-            //     this.musicQueue.addSongsToIndex(songs, queueNumber - 1)
-            //     this.musicQueue.updateDurations()
-            //     reply = `Queued **${songs.length}** songs!`
+                    songs.push(song);
+                }
+                params.pageToken = response.data.nextPageToken;
+            } while (response.data.nextPageToken);
+            if (!this.queue.isPlaying()) {
+                songs[0] = await Song.From(songs[0].videoId, author);
+            }
+            this.queue.addSongsToIndex(songs, queueNumber - 1);
+            // this.queue.updateDurations()
+            reply = `Queued **${songs.length}** songs!`;
 
         } else {
             const params = {
-                part: "id",
+                part: "id,snippet",
                 key: process.env.YOUTUBE_API_KEY,
                 q: query,
                 type: "video",
-                maxResults: 1
+                maxResults: 5
             };
 
             try {
@@ -202,22 +204,15 @@ export class MusicPlayer {
                 });
             } catch (err) {
                 console.error(err);
-                return "Error while trying to fetch video info";
+                return "Error while trying to search up the video";
             }
-            try {
-                const videoId = response.data.items[0].id.videoId;
-                const song = await Song.From(videoId, author);
-                if (!song) return "Song not found"; // TODO: error handling
-                const index = this.queue.addSongToIndex(song, queueNumber - 1);
 
-                // const enqueueEmbed = new EnqueueEmbed(song, index + 1);
-                // reply = { embeds: [enqueueEmbed.build()] }
-                reply = "Now playing " + song.title;
-
-            } catch (err) {
-                console.log(err);
-                reply = "Music Not Found!";
+            const searchedVideos: (Song | undefined)[] = [];
+            for (const i of response.data.items) {
+                searchedVideos.push(new Song(i.id.videoId, i.snippet.title, i.snippet.thumbnails.default, 0, i.snippet.channelTitle, author));
             }
+            const actionRow = toActionRow(searchedVideos);
+            return { content: "Select a song!", components: [actionRow] };
 
         }
         if (queueNumber == 1) { // if play top, refresh the cache {
