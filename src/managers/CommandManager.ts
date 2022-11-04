@@ -1,17 +1,12 @@
-import { Collection } from "discord.js";
+import { Base, Collection } from "discord.js";
 import { BaseCommand, BaseManager } from "../types/BaseClasses";
 import { RepliableInteraction } from "../types/RepliableInteraction";
 import fs from "fs";
 import path from "path";
 export class CommandManager extends BaseManager {
-    commands: Collection<string, BaseCommand>;
+    static commands: Collection<string, BaseCommand> = new Collection<string, BaseCommand>;
 
-    constructor(commandsPath: string) {
-        super();
-        this.commands = new Collection();
-        this.init(commandsPath);
-    }
-    async init(commandsPath: string) {
+    static async _init(commandsPath: string) {
         const commandFiles = fs.readdirSync(commandsPath);
         for (const file of commandFiles) {
             const filePath = path.join(commandsPath, file);
@@ -22,7 +17,8 @@ export class CommandManager extends BaseManager {
         }
     }
 
-    execute(command: string, interaction: RepliableInteraction) {
-        this.commands.get(command)?.execute(interaction);
+    static execute(command: string, interaction: RepliableInteraction) {
+        CommandManager.commands.get(command)?.execute(interaction);
     }
 }
+CommandManager._init(path.join(__dirname, "..", 'commands'));
